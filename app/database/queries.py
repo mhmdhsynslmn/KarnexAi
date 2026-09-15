@@ -140,3 +140,46 @@ def get_recent_transactions(limit=5):
             }
             for row in result
         ]
+def get_transactions():
+    engine = get_engine()
+
+    query = text("""
+        SELECT
+            t.TransactionId,
+            t.TransactionDate,
+            t.AccountId,
+            a.AccountName,
+            t.CategoryId,
+            c.CategoryName,
+            t.Description,
+            t.Amount,
+            t.TransactionType,
+            t.ReferenceId,
+            t.CreatedAt
+        FROM Transactions t
+        LEFT JOIN Accounts a
+            ON t.AccountId = a.AccountId
+        LEFT JOIN Categories c
+            ON t.CategoryId = c.CategoryId
+        ORDER BY t.TransactionDate DESC, t.TransactionId DESC;
+    """)
+
+    with engine.connect() as connection:
+        result = connection.execute(query)
+
+        return [
+            {
+                "id": row.TransactionId,
+                "date": row.TransactionDate,
+                "account_id": row.AccountId,
+                "account": row.AccountName,
+                "category_id": row.CategoryId,
+                "category": row.CategoryName,
+                "description": row.Description,
+                "amount": float(row.Amount or 0),
+                "type": row.TransactionType,
+                "reference_id": row.ReferenceId,
+                "created_at": row.CreatedAt
+            }
+            for row in result
+        ]
