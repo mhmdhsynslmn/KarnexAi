@@ -987,7 +987,7 @@ class KarnexApp(tk.Tk):
 
         self.make_label(
             chart_card,
-            "Gelir - Gider - Kâr Trendi",
+            "En Yüksek Gider Kategorileri",
             12,
             TEXT,
             True
