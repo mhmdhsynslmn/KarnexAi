@@ -7,6 +7,8 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 from PIL import Image, ImageDraw
 
+from app.ml.anomaly import get_anomaly_summary
+
 ###############################################################
 # KARNEX AI
 # MSSQL tabanli finansal dashboard
@@ -1510,14 +1512,67 @@ class KarnexApp(tk.Tk):
     # ========================================================
     # ANOMALI
     # ========================================================
-
     def build_anomalies(self, page):
 
-        self.page_title(
+    # --------------------------------------------------------
+    # SAYFA BASLIGI
+    # --------------------------------------------------------
+
+        header = tk.Frame(
             page,
-            "Anomali Tespiti",
-            "MSSQL verilerinizde olağandışı durumları tespit edin."
+            bg=BG
         )
+        header.pack(
+            fill="x",
+            pady=(0, 20)
+        )
+
+        title = tk.Label(
+            header,
+            text="Anomali Tespiti",
+            font=("Segoe UI", 22, "bold"),
+            bg=BG,
+            fg=TEXT
+        )
+        title.pack(anchor="w")
+
+        subtitle = tk.Label(
+            header,
+            text="Makine öğrenmesi ile olağandışı finansal işlemleri tespit edin.",
+            font=("Segoe UI", 10),
+            bg=BG,
+            fg=MUTED
+        )
+        subtitle.pack(
+            anchor="w",
+            pady=(5, 0)
+        )
+
+        # --------------------------------------------------------
+        # ML VERISINI AL
+        # --------------------------------------------------------
+
+        try:
+            anomaly_data = get_anomaly_summary()
+
+        except Exception as e:
+
+            print("Anomali analizi hatasi:", e)
+
+            anomaly_data = {
+                "total_transactions": 0,
+                "anomaly_count": 0,
+                "normal_count": 0,
+                "anomalies": []
+            }
+
+        total_transactions = anomaly_data["total_transactions"]
+        anomaly_count = anomaly_data["anomaly_count"]
+        normal_count = anomaly_data["normal_count"]
+
+        # --------------------------------------------------------
+        # ISTATISTIK ALANI
+        # --------------------------------------------------------
 
         stats = tk.Frame(
             page,
@@ -1526,143 +1581,391 @@ class KarnexApp(tk.Tk):
 
         stats.pack(
             fill="x",
-            padx=14
+            pady=(0, 20)
         )
 
-        self.add_stat_card(
+        # TOPLAM ISLEM
+        total_card = tk.Frame(
             stats,
-            "Tespit Edilen Anomali",
-            "7",
-            "Toplam kayıt",
-            "!",
-            RED
-        )
-
-        self.add_stat_card(
-            stats,
-            "Yüksek Risk",
-            "3",
-            "İncelenmesi gerekli",
-            "!",
-            ORANGE
-        )
-
-        self.add_stat_card(
-            stats,
-            "Düşük Risk",
-            "4",
-            "Kontrol altında",
-            "✓",
-            GREEN
-        )
-
-        panel = self.card(page)
-
-        panel.pack(
-            fill="both",
-            expand=True,
-            padx=18,
-            pady=10
-        )
-
-        self.make_label(
-            panel,
-            "Anomali Listesi",
-            12,
-            TEXT,
-            True
-        ).pack(
-            anchor="w",
-            padx=12,
-            pady=10
-        )
-
-        self.add_table(
-            panel,
-            [
-                "Tarih",
-                "Tip",
-                "Açıklama",
-                "Risk",
-                "Durum"
-            ],
-            [
-                [
-                    "18.09.2025",
-                    "Fatura",
-                    "Tedarikçi faturası beklenenden yüksek",
-                    "Yüksek",
-                    "İnceleniyor"
-                ],
-                [
-                    "16.09.2025",
-                    "Stok",
-                    "Stok hareketlerinde olağandışı değişim",
-                    "Orta",
-                    "Açık"
-                ],
-                [
-                    "12.09.2025",
-                    "Cari",
-                    "Cari hesapta şüpheli işlem",
-                    "Yüksek",
-                    "İnceleniyor"
-                ],
-                [
-                    "08.09.2025",
-                    "Gider",
-                    "Pazarlama giderlerinde ani artış",
-                    "Orta",
-                    "Kapalı"
-                ],
-                [
-                    "04.09.2025",
-                    "Fatura",
-                    "Fatura tutarı ortalamanın üzerinde",
-                    "Düşük",
-                    "Kapalı"
-                ],
-            ],
-            height=8
-        )
-
-        detail = tk.Frame(
-            panel,
-            bg="#fff1f1",
-            highlightbackground="#ffcaca",
+            bg=WHITE,
+            highlightbackground="#E5E7EB",
             highlightthickness=1
         )
 
-        detail.pack(
+        total_card.pack(
+            side="left",
+            fill="both",
+            expand=True,
+            padx=(0, 8)
+        )
+
+        tk.Label(
+            total_card,
+            text="Toplam İşlem",
+            font=("Segoe UI", 10),
+            bg=WHITE,
+            fg=MUTED
+        ).pack(
+            anchor="w",
+            padx=20,
+            pady=(18, 5)
+        )
+
+        tk.Label(
+            total_card,
+            text=str(total_transactions),
+            font=("Segoe UI", 24, "bold"),
+            bg=WHITE,
+            fg=TEXT
+        ).pack(
+            anchor="w",
+            padx=20
+        )
+
+        tk.Label(
+            total_card,
+            text="MSSQL'den analiz edilen işlem",
+            font=("Segoe UI", 9),
+            bg=WHITE,
+            fg=MUTED
+        ).pack(
+            anchor="w",
+            padx=20,
+            pady=(2, 18)
+        )
+
+        # ANOMALI
+        anomaly_card = tk.Frame(
+            stats,
+            bg=WHITE,
+            highlightbackground="#E5E7EB",
+            highlightthickness=1
+        )
+
+        anomaly_card.pack(
+            side="left",
+            fill="both",
+            expand=True,
+            padx=8
+        )
+
+        tk.Label(
+            anomaly_card,
+            text="Anomali",
+            font=("Segoe UI", 10),
+            bg=WHITE,
+            fg=MUTED
+        ).pack(
+            anchor="w",
+            padx=20,
+            pady=(18, 5)
+        )
+
+        tk.Label(
+            anomaly_card,
+            text=str(anomaly_count),
+            font=("Segoe UI", 24, "bold"),
+            bg=WHITE,
+            fg=RED
+        ).pack(
+            anchor="w",
+            padx=20
+        )
+
+        tk.Label(
+            anomaly_card,
+            text="Şüpheli işlem",
+            font=("Segoe UI", 9),
+            bg=WHITE,
+            fg=MUTED
+        ).pack(
+            anchor="w",
+            padx=20,
+            pady=(2, 18)
+        )
+
+        # NORMAL
+        normal_card = tk.Frame(
+            stats,
+            bg=WHITE,
+            highlightbackground="#E5E7EB",
+            highlightthickness=1
+        )
+
+        normal_card.pack(
+            side="left",
+            fill="both",
+            expand=True,
+            padx=(8, 0)
+        )
+
+        tk.Label(
+            normal_card,
+            text="Normal",
+            font=("Segoe UI", 10),
+            bg=WHITE,
+            fg=MUTED
+        ).pack(
+            anchor="w",
+            padx=20,
+            pady=(18, 5)
+        )
+
+        tk.Label(
+            normal_card,
+            text=str(normal_count),
+            font=("Segoe UI", 24, "bold"),
+            bg=WHITE,
+            fg=GREEN
+        ).pack(
+            anchor="w",
+            padx=20
+        )
+
+        tk.Label(
+            normal_card,
+            text="Normal işlem",
+            font=("Segoe UI", 9),
+            bg=WHITE,
+            fg=MUTED
+        ).pack(
+            anchor="w",
+            padx=20,
+            pady=(2, 18)
+        )
+
+        # --------------------------------------------------------
+        # ANOMALI TABLOSU
+        # --------------------------------------------------------
+
+        table_card = tk.Frame(
+            page,
+            bg=WHITE,
+            highlightbackground="#E5E7EB",
+            highlightthickness=1
+        )
+
+        table_card.pack(
+            fill="both",
+            expand=True,
+            pady=(0, 18)
+        )
+
+        tk.Label(
+            table_card,
+            text="Tespit Edilen Anomaliler",
+            font=("Segoe UI", 14, "bold"),
+            bg=WHITE,
+            fg=TEXT
+        ).pack(
+            anchor="w",
+            padx=20,
+            pady=(18, 4)
+        )
+
+        tk.Label(
+            table_card,
+            text="Isolation Forest tarafından olağandışı olarak işaretlenen işlemler.",
+            font=("Segoe UI", 9),
+            bg=WHITE,
+            fg=MUTED
+        ).pack(
+            anchor="w",
+            padx=20,
+            pady=(0, 15)
+        )
+
+        # --------------------------------------------------------
+        # TABLO
+        # --------------------------------------------------------
+
+        table_frame = tk.Frame(
+            table_card,
+            bg=WHITE
+        )
+
+        table_frame.pack(
+            fill="both",
+            expand=True,
+            padx=20,
+            pady=(0, 20)
+        )
+
+        columns = (
+            "Tarih",
+            "Kategori",
+            "Açıklama",
+            "Tutar",
+            "Skor",
+            "Durum"
+        )
+
+        tree = ttk.Treeview(
+            table_frame,
+            columns=columns,
+            show="headings",
+            height=8
+        )
+
+        for column in columns:
+
+            tree.heading(
+                column,
+                text=column
+            )
+
+        tree.column(
+            "Tarih",
+            width=100,
+            anchor="center"
+        )
+
+        tree.column(
+            "Kategori",
+            width=150,
+            anchor="w"
+        )
+
+        tree.column(
+            "Açıklama",
+            width=280,
+            anchor="w"
+        )
+
+        tree.column(
+            "Tutar",
+            width=130,
+            anchor="e"
+        )
+
+        tree.column(
+            "Skor",
+            width=100,
+            anchor="center"
+        )
+
+        tree.column(
+            "Durum",
+            width=100,
+            anchor="center"
+        )
+
+        scrollbar = ttk.Scrollbar(
+            table_frame,
+            orient="vertical",
+            command=tree.yview
+        )
+
+        tree.configure(
+            yscrollcommand=scrollbar.set
+        )
+
+        tree.pack(
+            side="left",
+            fill="both",
+            expand=True
+        )
+
+        scrollbar.pack(
+            side="right",
+            fill="y"
+        )
+
+        anomalies = anomaly_data["anomalies"]
+
+        if anomalies:
+
+            for item in anomalies:
+
+                date_value = item.get("date")
+
+                if date_value:
+
+                    try:
+                        date_text = date_value.strftime("%d.%m.%Y")
+                    except Exception:
+                        date_text = str(date_value)
+
+                else:
+                    date_text = "-"
+
+                category = item.get("category") or "-"
+                description = item.get("description") or "-"
+                amount = item.get("amount", 0)
+                score = item.get("anomaly_score", 0)
+
+                tree.insert(
+                    "",
+                    "end",
+                    values=(
+                        date_text,
+                        category,
+                        description,
+                        f"₺ {amount:,.2f}",
+                        f"{score:.4f}",
+                        "Anomali"
+                    )
+                )
+
+        else:
+
+            tree.insert(
+                "",
+                "end",
+                values=(
+                    "-",
+                    "-",
+                    "Tespit edilen anomali bulunmuyor.",
+                    "-",
+                    "-",
+                    "Normal"
+                )
+            )
+
+        # --------------------------------------------------------
+        # BILGI KARTI
+        # --------------------------------------------------------
+
+        info_card = tk.Frame(
+            page,
+            bg=WHITE,
+            highlightbackground="#E5E7EB",
+            highlightthickness=1
+        )
+
+        info_card.pack(
             fill="x",
-            padx=12,
-            pady=12
-        )
-
-        self.make_label(
-            detail,
-            "⚠ Seçili Anomali Detayı",
-            11,
-            RED,
-            True,
-            "#fff1f1"
-        ).pack(
-            anchor="w",
-            padx=12,
-            pady=8
-        )
-
-        self.make_label(
-            detail,
-            "Tedarikçi faturası beklenenden yüksek. Tutar: ₺432.700 | Sapma: %45,4",
-            10,
-            TEXT,
-            False,
-            "#fff1f1"
-        ).pack(
-            anchor="w",
-            padx=12,
             pady=(0, 10)
+        )
+
+        tk.Label(
+            info_card,
+            text="Makine Öğrenmesi Analizi",
+            font=("Segoe UI", 12, "bold"),
+            bg=WHITE,
+            fg=TEXT
+        ).pack(
+            anchor="w",
+            padx=20,
+            pady=(15, 5)
+        )
+
+        tk.Label(
+            info_card,
+            text=(
+                "Isolation Forest, finansal işlemlerin tutarlarını "
+                "inceleyerek normal davranıştan önemli ölçüde "
+                "sapma gösteren işlemleri tespit eder."
+            ),
+            font=("Segoe UI", 9),
+            bg=WHITE,
+            fg=MUTED,
+            wraplength=1000,
+            justify="left"
+        ).pack(
+            anchor="w",
+            padx=20,
+            pady=(0, 15)
         )
 
     # ========================================================
