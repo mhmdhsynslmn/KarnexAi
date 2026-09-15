@@ -1,0 +1,30 @@
+# Virtual Environment (Sanal Ortam)
+venv/
+env/
+ENV/
+.venv/
+
+# Python Cache & Bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C Uzantıları ve Derlenmiş Dosyalar
+*.so
+*.pyd
+
+# IDE & Editor Ayarları
+.vscode/
+.idea/
+*.swp
+*~
+
+# Veritabanı, Günlükler ve Geçici Veriler
+*.log
+*.sqlite3
+*.db
+data/temp/
+
+# Ortam Değişkenleri ve Gizli Bilgiler (API Anahtarları, Şifreler)
+.env
+.env.local
