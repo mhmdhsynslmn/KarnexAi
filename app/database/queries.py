@@ -94,18 +94,49 @@ def get_top_expense_categories(limit=5):
 
 
 def get_dashboard_data():
-    """
-    Dashboard icin gerekli tum verileri tek noktadan toplar.
-    """
-
     summary = get_financial_summary()
     invoice_count = get_invoice_count()
     top_expenses = get_top_expense_categories()
+    recent_transactions = get_recent_transactions()
 
     return {
         "total_income": summary["total_income"],
         "total_expense": summary["total_expense"],
         "net_profit": summary["net_profit"],
         "invoice_count": invoice_count,
-        "top_expenses": top_expenses
+        "top_expenses": top_expenses,
+        "recent_transactions": recent_transactions
     }
+
+def get_recent_transactions(limit=5):
+    engine = get_engine()
+
+    query = text("""
+        SELECT TOP (:limit)
+            t.TransactionDate,
+            c.CategoryName,
+            t.Description,
+            t.Amount,
+            t.TransactionType
+        FROM Transactions t
+        LEFT JOIN Categories c
+            ON t.CategoryId = c.CategoryId
+        ORDER BY t.TransactionDate DESC, t.TransactionId DESC;
+    """)
+
+    with engine.connect() as connection:
+        result = connection.execute(
+            query,
+            {"limit": limit}
+        )
+
+        return [
+            {
+                "date": row.TransactionDate,
+                "category": row.CategoryName,
+                "description": row.Description,
+                "amount": float(row.Amount),
+                "type": row.TransactionType
+            }
+            for row in result
+        ]

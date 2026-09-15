@@ -1077,30 +1077,29 @@ class KarnexApp(tk.Tk):
             pady=8
         )
 
+        recent_transactions = self.dashboard_data.get(
+            "recent_transactions",
+            []
+        )
+
+        transaction_rows = []
+
+        for item in recent_transactions:
+
+            transaction_rows.append(
+                [
+                    item["date"].strftime("%d.%m.%Y"),
+                    item["description"] or item["category"] or "-",
+                    f"₺ {item['amount']:,.2f}",
+                    "Gelir" if item["type"] == "INCOME" else "Gider"
+                ]
+            )
+
         self.add_table(
             bottom,
-            ["Tarih", "Açıklama", "Tutar", "Durum"],
-            [
-                [
-                    "30.09.2025",
-                    "Satış Faturası (F-0025-1045)",
-                    "₺ 125.000",
-                    "✓"
-                ],
-                [
-                    "29.09.2025",
-                    "Tedarikçi Ödemesi (T-2025-0876)",
-                    "₺ 78.450",
-                    "✓"
-                ],
-                [
-                    "26.09.2025",
-                    "Personel Maaşları",
-                    "₺ 92.320",
-                    "✓"
-                ],
-            ],
-            height=4
+            ["Tarih", "Açıklama", "Tutar", "Tür"],
+            transaction_rows,
+            height=5
         )
 
     # ========================================================
