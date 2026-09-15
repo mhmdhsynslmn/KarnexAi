@@ -1,10 +1,7 @@
 from sqlalchemy import text
+
 from app.database.connection import get_engine
 
-
-# ============================================================
-# DASHBOARD
-# ============================================================
 
 def get_financial_summary():
     engine = get_engine()
@@ -68,11 +65,16 @@ def get_top_expense_categories(limit=5):
         SELECT TOP (:limit)
             c.CategoryName,
             SUM(t.Amount) AS TotalExpense
+
         FROM Transactions t
+
         INNER JOIN Categories c
             ON t.CategoryId = c.CategoryId
+
         WHERE t.TransactionType = 'EXPENSE'
+
         GROUP BY c.CategoryName
+
         ORDER BY TotalExpense DESC;
     """)
 
@@ -90,6 +92,21 @@ def get_top_expense_categories(limit=5):
             for row in result
         ]
 
+
+def get_dashboard_data():
+    summary = get_financial_summary()
+    invoice_count = get_invoice_count()
+    top_expenses = get_top_expense_categories()
+    recent_transactions = get_recent_transactions()
+
+    return {
+        "total_income": summary["total_income"],
+        "total_expense": summary["total_expense"],
+        "net_profit": summary["net_profit"],
+        "invoice_count": invoice_count,
+        "top_expenses": top_expenses,
+        "recent_transactions": recent_transactions
+    }
 
 def get_recent_transactions(limit=5):
     engine = get_engine()
@@ -123,11 +140,6 @@ def get_recent_transactions(limit=5):
             }
             for row in result
         ]
-
-# ============================================================
-# TRANSACTIONS - ML / ANOMALY DETECTION
-# ============================================================
-
 def get_transactions():
     engine = get_engine()
 
@@ -164,7 +176,7 @@ def get_transactions():
                 "category_id": row.CategoryId,
                 "category": row.CategoryName,
                 "description": row.Description,
-                "amount": float(row.Amount),
+                "amount": float(row.Amount or 0),
                 "type": row.TransactionType,
                 "reference_id": row.ReferenceId,
                 "created_at": row.CreatedAt
