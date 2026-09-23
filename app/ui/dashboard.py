@@ -9,6 +9,10 @@ from PIL import Image, ImageDraw
 
 from app.ml.anomaly import get_anomaly_summary
 
+import threading
+
+from app.ai.llm_client import chat
+
 ###############################################################
 # KARNEX AI
 # MSSQL tabanli finansal dashboard
@@ -1113,199 +1117,494 @@ class KarnexApp(tk.Tk):
         self.page_title(
             page,
             "AI Chat / Copilot",
-            "Doğal dil ile sorular sorun, finansal verilerinizden anında yanıt alın."
+            "Finansal verileriniz hakkında doğal dil ile soru sorun."
         )
 
-        panel = self.card(
-            page
+        panel = tk.Frame(
+            page,
+            bg=WHITE,
+            highlightbackground=BORDER,
+            highlightthickness=1
         )
 
         panel.pack(
             fill="both",
             expand=True,
             padx=18,
-            pady=5
+            pady=(5, 15)
         )
 
-        user = tk.Frame(
+        # ========================================================
+        # CHAT HEADER
+        # ========================================================
+
+        header = tk.Frame(panel, bg=NAVY, height=62)
+        header.pack(fill="x")
+        header.pack_propagate(False)
+
+        logo = tk.Canvas(
+            header,
+            width=42,
+            height=42,
+            bg=NAVY,
+            highlightthickness=0
+        )
+        logo.pack(side="left", padx=(15, 8), pady=9)
+
+        logo.create_polygon(
+            3, 21, 17, 5, 25, 5, 14, 21, 25, 37, 17, 37,
+            fill="#2d9cf0", outline=""
+        )
+        logo.create_polygon(
+            15, 21, 29, 5, 38, 5, 26, 21, 38, 37, 29, 37,
+            fill="#1769b4", outline=""
+        )
+
+        title_frame = tk.Frame(header, bg=NAVY)
+        title_frame.pack(side="left", pady=8)
+
+        tk.Label(
+            title_frame,
+            text="Kârnex AI Copilot",
+            bg=NAVY,
+            fg=WHITE,
+            font=("Segoe UI", 11, "bold")
+        ).pack(anchor="w")
+
+        tk.Label(
+            title_frame,
+            text="MSSQL finansal verileri ile çalışan AI asistan",
+            bg=NAVY,
+            fg="#b8cce5",
+            font=("Segoe UI", 8)
+        ).pack(anchor="w")
+
+        tk.Label(
+            header,
+            text="● Çevrimiçi",
+            bg=NAVY,
+            fg=GREEN,
+            font=("Segoe UI", 8, "bold")
+        ).pack(side="right", padx=18)
+
+        # ========================================================
+        # HIZLI SORULAR
+        # ========================================================
+
+        quick_frame = tk.Frame(panel, bg=WHITE)
+        quick_frame.pack(fill="x", padx=16, pady=(10, 5))
+
+        quick_questions = [
+            "Toplam giderimiz ne kadar?",
+            "En yüksek gider kategorileri hangileri?",
+            "Personel giderleri yüzde kaç?",
+            "Son finansal işlemlerimizi göster."
+        ]
+
+        for question in quick_questions:
+            button = tk.Button(
+                quick_frame,
+                text=question,
+                command=lambda q=question: self.use_chat_prompt(q),
+                bg="#eef4fb",
+                fg=TEXT,
+                activebackground="#dceafa",
+                activeforeground=TEXT,
+                relief="flat",
+                bd=0,
+                font=("Segoe UI", 8),
+                padx=10,
+                pady=6,
+                cursor="hand2"
+            )
+            button.pack(side="left", padx=3, pady=2)
+
+        # ========================================================
+        # CHAT AREA
+        # ========================================================
+
+        chat_container = tk.Frame(panel, bg="#f7f9fc")
+        chat_container.pack(
+            fill="both",
+            expand=True,
+            padx=1,
+            pady=(5, 0)
+        )
+
+        self.chat_canvas = tk.Canvas(
+            chat_container,
+            bg="#f7f9fc",
+            highlightthickness=0,
+            bd=0
+        )
+
+        scrollbar = ttk.Scrollbar(
+            chat_container,
+            orient="vertical",
+            command=self.chat_canvas.yview
+        )
+
+        scrollbar.pack(side="right", fill="y")
+        self.chat_canvas.pack(side="left", fill="both", expand=True)
+
+        self.chat_canvas.configure(yscrollcommand=scrollbar.set)
+
+        self.chat_messages_frame = tk.Frame(
+            self.chat_canvas,
+            bg="#f7f9fc"
+        )
+
+        self.chat_window = self.chat_canvas.create_window(
+            (0, 0),
+            window=self.chat_messages_frame,
+            anchor="nw"
+        )
+
+        self.chat_messages_frame.bind(
+            "<Configure>",
+            lambda event: self.chat_canvas.configure(
+                scrollregion=self.chat_canvas.bbox("all")
+            )
+        )
+
+        self.chat_canvas.bind("<Configure>", self._resize_chat_frame)
+
+        # ========================================================
+        # DURUM
+        # ========================================================
+
+        self.chat_status = tk.Label(
             panel,
-            bg="#dcecff"
+            text="● Kârnex AI hazır",
+            bg=WHITE,
+            fg=GREEN,
+            font=("Segoe UI", 8, "bold"),
+            anchor="w"
         )
+        self.chat_status.pack(fill="x", padx=18, pady=(7, 2))
 
-        user.pack(
-            anchor="e",
-            padx=18,
-            pady=15
-        )
+        # ========================================================
+        # MESAJ GİRİŞ ALANI
+        # ========================================================
 
-        self.make_label(
-            user,
-            "👤  Geçen ay neden kârımız düştü?",
-            10,
-            TEXT,
-            True,
-            "#dcecff"
-        ).pack(
-            padx=14,
-            pady=10
-        )
+        input_outer = tk.Frame(panel, bg=WHITE)
+        input_outer.pack(fill="x", padx=15, pady=(5, 14))
 
-        answer = tk.Frame(
-            panel,
-            bg="#f7faff",
-            highlightbackground=BORDER,
+        input_frame = tk.Frame(
+            input_outer,
+            bg="#f5f8fc",
+            highlightbackground="#cbd9e9",
             highlightthickness=1
         )
+        input_frame.pack(fill="x")
 
-        answer.pack(
-            fill="x",
-            padx=18,
-            pady=5
+        tk.Label(
+            input_frame,
+            text="◉",
+            bg="#f5f8fc",
+            fg=NAVY,
+            font=("Segoe UI", 15)
+        ).pack(side="left", padx=(12, 5))
+
+        self.chat_entry = tk.Text(
+            input_frame,
+            height=2,
+            wrap="word",
+            bd=0,
+            bg="#f5f8fc",
+            fg=TEXT,
+            insertbackground=TEXT,
+            font=("Segoe UI", 10),
+            relief="flat",
+            padx=5,
+            pady=8
         )
-
-        self.make_label(
-            answer,
-            "◉",
-            23,
-            BLUE,
-            True,
-            "#f7faff"
-        ).pack(
-            side="left",
-            padx=12,
-            pady=15,
-            anchor="n"
-        )
-
-        body = tk.Frame(
-            answer,
-            bg="#f7faff"
-        )
-
-        body.pack(
+        self.chat_entry.pack(
             side="left",
             fill="both",
             expand=True,
-            padx=8,
-            pady=15
+            padx=(3, 5),
+            pady=4
         )
 
-        self.make_label(
-            body,
-            "Geçen aya göre kârımızın düşmesinin temel nedenleri:",
-            10,
-            TEXT,
-            True,
-            "#f7faff"
-        ).pack(
-            anchor="w",
-            pady=(0, 8)
-        )
+        self.chat_placeholder = "Sorunuzu yazın..."
+        self.chat_entry.insert("1.0", self.chat_placeholder)
+        self.chat_entry.configure(fg=MUTED)
 
-        for text in [
-            "1. Satışlar: Satışlar %8 artmış olsa da brüt kâr marjı %3,2 azalmıştır.",
-            "2. Maliyetler: X ürün grubunun maliyet oranı %14 yükselmiştir.",
-            "3. Giderler: Pazarlama ve genel yönetim giderleri %6 artmıştır."
-        ]:
+        self.chat_entry.bind("<FocusIn>", self.clear_chat_placeholder)
+        self.chat_entry.bind("<FocusOut>", self.restore_chat_placeholder)
+        self.chat_entry.bind("<Return>", self.handle_chat_return)
 
-            self.make_label(
-                body,
-                text,
-                10,
-                TEXT,
-                False,
-                "#f7faff"
-            ).pack(
-                anchor="w",
-                pady=4
-            )
-
-        result = tk.Frame(
-            body,
-            bg="#eaf4ff"
-        )
-
-        result.pack(
-            fill="x",
-            pady=10
-        )
-
-        self.make_label(
-            result,
-            "◈  Sonuç",
-            10,
-            BLUE,
-            True,
-            "#eaf4ff"
-        ).pack(
-            anchor="w",
-            padx=10,
-            pady=(8, 3)
-        )
-
-        self.make_label(
-            result,
-            "Maliyet oranındaki yükseliş ve artan giderler nedeniyle kâr %12,4 düşmüştür.",
-            10,
-            TEXT,
-            False,
-            "#eaf4ff"
-        ).pack(
-            anchor="w",
-            padx=10,
-            pady=(0, 8)
-        )
-
-        input_frame = tk.Frame(
-            panel,
-            bg="#f9fbff",
-            highlightbackground=BORDER,
-            highlightthickness=1
-        )
-
-        input_frame.pack(
-            side="bottom",
-            fill="x",
-            padx=18,
-            pady=18
-        )
-
-        entry = tk.Entry(
+        self.send_chat_button = tk.Button(
             input_frame,
+            text="➤",
+            command=self.send_chat_message,
+            bg=BLUE,
+            fg=WHITE,
+            activebackground="#1764c0",
+            activeforeground=WHITE,
+            relief="flat",
             bd=0,
-            bg="#f9fbff",
-            font=("Segoe UI", 10)
+            font=("Segoe UI", 14, "bold"),
+            width=4,
+            height=2,
+            cursor="hand2"
+        )
+        self.send_chat_button.pack(side="right", padx=6, pady=6)
+
+        self.add_chat_message(
+            "assistant",
+            "Merhaba! Ben Kârnex AI Copilot.\n\n"
+            "Finansal verileriniz hakkında doğal dil ile "
+            "sorular sorabilirsiniz."
         )
 
-        entry.insert(
-            0,
-            "Sorunuzu yazın..."
-        )
+        self.chat_entry.focus_set()
 
-        entry.pack(
-            side="left",
-            fill="x",
-            expand=True,
-            ipady=13,
-            padx=12
-        )
+    # ========================================================
+    # CHAT YARDIMCILARI
+    # ========================================================
 
-        self.make_action_button(
-            input_frame,
-            "➤",
-            lambda: messagebox.showinfo(
-                "Demo",
-                "AI yanıtı burada gösterilecek."
+    def _resize_chat_frame(self, event):
+        try:
+            self.chat_canvas.itemconfigure(
+                self.chat_window,
+                width=event.width
             )
-        ).pack(
-            side="right",
-            padx=6,
-            pady=5
+        except Exception:
+            pass
+
+    def _scroll_chat_to_bottom(self):
+        self.update_idletasks()
+        self.chat_canvas.configure(
+            scrollregion=self.chat_canvas.bbox("all")
+        )
+        self.chat_canvas.yview_moveto(1.0)
+
+    def clear_chat_placeholder(self, event=None):
+        try:
+            if self.chat_entry.get("1.0", "end-1c") == self.chat_placeholder:
+                self.chat_entry.delete("1.0", "end")
+                self.chat_entry.configure(fg=TEXT)
+        except Exception:
+            pass
+
+    def restore_chat_placeholder(self, event=None):
+        try:
+            if not self.chat_entry.get("1.0", "end-1c").strip():
+                self.chat_entry.insert("1.0", self.chat_placeholder)
+                self.chat_entry.configure(fg=MUTED)
+        except Exception:
+            pass
+
+    def handle_chat_return(self, event):
+        # Shift+Enter = yeni satır, Enter = gönder
+        if event.state & 0x0001:
+            return None
+
+        self.send_chat_message()
+        return "break"
+
+    def use_chat_prompt(self, question):
+        self.clear_chat_placeholder()
+        self.chat_entry.delete("1.0", "end")
+        self.chat_entry.insert("1.0", question)
+        self.chat_entry.focus_set()
+        self.send_chat_message()
+
+    def add_chat_message(self, sender, message):
+
+        message = str(message).replace("**", "").strip()
+
+        row = tk.Frame(
+            self.chat_messages_frame,
+            bg="#f7f9fc"
+        )
+        row.pack(fill="x", padx=18, pady=(7, 3))
+
+        if sender == "user":
+
+            row.columnconfigure(0, weight=1)
+
+            bubble = tk.Label(
+                row,
+                text=message,
+                bg=NAVY_2,
+                fg=WHITE,
+                font=("Segoe UI", 10),
+                justify="left",
+                anchor="w",
+                wraplength=650,
+                padx=14,
+                pady=10
+            )
+            bubble.grid(
+                row=0,
+                column=0,
+                sticky="e",
+                padx=(120, 8)
+            )
+
+            avatar = tk.Label(
+                row,
+                text="●",
+                bg="#dce9f8",
+                fg=NAVY,
+                font=("Segoe UI", 11, "bold"),
+                width=2
+            )
+            avatar.grid(row=0, column=1, sticky="ne")
+
+        elif sender == "assistant":
+
+            avatar_frame = tk.Frame(
+                row,
+                bg=WHITE,
+                width=34,
+                height=34,
+                highlightbackground=BORDER,
+                highlightthickness=1
+            )
+            avatar_frame.grid(
+                row=0,
+                column=0,
+                sticky="nw",
+                padx=(0, 8)
+            )
+            avatar_frame.grid_propagate(False)
+
+            tk.Label(
+                avatar_frame,
+                text="K",
+                bg=WHITE,
+                fg=BLUE,
+                font=("Segoe UI", 11, "bold")
+            ).pack(expand=True)
+
+            bubble = tk.Label(
+                row,
+                text=message,
+                bg=WHITE,
+                fg=TEXT,
+                font=("Segoe UI", 10),
+                justify="left",
+                anchor="w",
+                wraplength=720,
+                padx=14,
+                pady=10,
+                highlightbackground="#e2e8f0",
+                highlightthickness=1
+            )
+            bubble.grid(
+                row=0,
+                column=1,
+                sticky="w",
+                padx=(0, 120)
+            )
+
+        else:
+
+            label = tk.Label(
+                row,
+                text=message,
+                bg="#fff8e8",
+                fg=MUTED,
+                font=("Segoe UI", 8, "italic"),
+                padx=10,
+                pady=6
+            )
+            label.pack(anchor="center")
+
+        self.after_idle(self._scroll_chat_to_bottom)
+
+    def send_chat_message(self):
+
+        message = self.chat_entry.get("1.0", "end-1c").strip()
+
+        if not message or message == self.chat_placeholder:
+            return
+
+        self.add_chat_message("user", message)
+
+        self.chat_entry.delete("1.0", "end")
+
+        self.chat_entry.configure(state="disabled")
+        self.send_chat_button.configure(state="disabled")
+
+        self.chat_status.configure(
+            text="● Kârnex AI düşünüyor...",
+            fg=ORANGE
         )
 
-    # ========================================================
-    # VERI ANALIZLERI
-    # ========================================================
+        thread = threading.Thread(
+            target=self.run_ai_chat,
+            args=(message,),
+            daemon=True
+        )
+        thread.start()
+
+    def run_ai_chat(self, message):
+
+        try:
+            response = chat(message)
+
+            if response is None:
+                response = "AI geçerli bir cevap döndürmedi."
+
+            self.after(
+                0,
+                self.chat_response_ready,
+                response
+            )
+
+        except Exception as e:
+
+            self.after(
+                0,
+                self.chat_error,
+                str(e)
+            )
+
+    def chat_response_ready(self, response):
+
+        if response:
+            self.add_chat_message("assistant", response)
+
+        self.chat_entry.configure(state="normal")
+        self.send_chat_button.configure(state="normal")
+
+        self.chat_status.configure(
+            text="● Kârnex AI hazır",
+            fg=GREEN
+        )
+
+        self.chat_entry.focus_set()
+
+    def chat_error(self, error_message):
+
+        self.add_chat_message(
+            "assistant",
+            "Üzgünüm, AI isteği sırasında bir hata oluştu."
+        )
+
+        self.add_chat_message(
+            "system",
+            "Hata: " + error_message
+        )
+
+        self.chat_entry.configure(state="normal")
+        self.send_chat_button.configure(state="normal")
+
+        self.chat_status.configure(
+            text="● Bağlantı hatası",
+            fg=RED
+        )
+
+        self.chat_entry.focus_set()
+
+        # ========================================================
+        # VERI ANALIZLERI
+        # ========================================================
 
     def build_analytics(self, page):
 
@@ -1508,6 +1807,7 @@ class KarnexApp(tk.Tk):
             expense_rows,
             height=8
         )
+
 
     # ========================================================
     # ANOMALI
