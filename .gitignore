@@ -25,6 +25,16 @@ __pycache__/
 *.db
 data/temp/
 
-# Ortam Değişkenleri ve Gizli Bilgiler (API Anahtarları, Şifreler)
+# Ortam Değişkenleri ve Gizli Bilgiler
 .env
 .env.local
+.env.*
+!.env.example
+
+# Test / Cache
+.pytest_cache/
+.mypy_cache/
+
+# İşletim sistemi dosyaları
+.DS_Store
+Thumbs.db
