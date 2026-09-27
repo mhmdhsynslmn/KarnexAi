@@ -213,15 +213,24 @@ Mevcut geliştirme ortamında Kârnex AI kendi MSSQL veritabanı üzerinde çal�
 
 ## 🤖 Yapay Zekâ
 
-LLM altyapısında NVIDIA API üzerinden erişilen modeller kullanılmaktadır.
+Kârnex AI, LLM altyapısını artık **tamamen yerel (local)** olarak çalıştırmaktadır. Model, internet bağlantısı veya harici bir API sağlayıcısı gerektirmeden **Ollama** üzerinden servis edilmektedir.
 
 Mevcut geliştirme sürecinde kullanılan model:
 
 ```text
-nvidia/nemotron-3.5-lightning-30b-a3b
+qwen2.5:3b-instruct-q4_K_M
 ```
 
-LLM entegrasyonu OpenAI uyumlu API yapısı üzerinden gerçekleştirilmektedir.
+LLM entegrasyonu, Ollama'nın sunduğu **OpenAI uyumlu API** (`http://localhost:11434/v1`) üzerinden gerçekleştirilmektedir. Bu sayede uygulama, resmi `openai` Python istemcisiyle (`OpenAI` sınıfı) doğrudan yerel modele bağlanabilmektedir.
+
+Yerel çalışmanın sağladığı avantajlar:
+
+* Harici bir API sağlayıcısına (ör. NVIDIA NIM) bağımlılık ortadan kalkmıştır
+* API anahtarı veya internet bağlantısı gerekmeden çalışabilme
+* Muhasebe verilerinin dışarıya hiç çıkmadan, tamamen yerelde işlenmesi
+* API kullanım maliyeti bulunmaması
+
+> **Not:** Proje daha önce NVIDIA API üzerinden erişilen bulut tabanlı modeller (`nvidia/nemotron-3.5-lightning-30b-a3b`) ile çalışıyordu. Güncel sürümde bu yapı kaldırılmış, yerini Ollama ile yerelde çalışan `qwen2.5:3b-instruct-q4_K_M` modeline bırakmıştır.
 
 ---
 
@@ -232,7 +241,7 @@ LLM entegrasyonu OpenAI uyumlu API yapısı üzerinden gerçekleştirilmektedir.
 * Python
 * Microsoft SQL Server
 * OpenAI-compatible API
-* NVIDIA NIM API
+* Ollama (yerel LLM çalıştırma)
 * LLM Tool Calling
 * Machine Learning
 * RAG
@@ -324,17 +333,26 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 4. `.env` dosyasını oluşturun
+### 4. Ollama'yı kurun ve modeli indirin
+
+Kârnex AI, LLM olarak **Ollama** üzerinden yerel bir modeli kullanmaktadır. Öncelikle [Ollama](https://ollama.com)'yı bilgisayarınıza kurun, ardından kullanılan modeli indirin:
+
+```bash
+ollama pull qwen2.5:3b-instruct-q4_K_M
+```
+
+Ollama servisinin varsayılan olarak `http://localhost:11434` adresinde çalıştığından emin olun.
+
+### 5. `.env` dosyasını oluşturun
 
 ```env
 DB_SERVER=YOUR_SQL_SERVER
 DB_NAME=YOUR_DATABASE
-NVIDIA_API_KEY=YOUR_NVIDIA_API_KEY
 ```
 
-> Güvenlik nedeniyle API anahtarınızı veya veritabanı bilgilerinizi GitHub'a yüklemeyin.
+> Ollama yerelde çalıştığı ve gerçek bir API anahtarı kontrolü yapmadığı için ayrı bir API anahtarı tanımlamanıza gerek yoktur.
 
-### 5. Uygulamayı çalıştırın
+### 6. Uygulamayı çalıştırın
 
 ```bash
 python -m app.main
@@ -346,7 +364,6 @@ python -m app.main
 
 `.env` dosyası içerisinde bulunan;
 
-* API anahtarları
 * Veritabanı kullanıcı bilgileri
 * Şifreler
 * Özel bağlantı bilgileri
@@ -365,7 +382,7 @@ GitHub reposuna gönderilmemelidir.
 * [x] Temel finansal veritabanı yapısı
 * [x] Finansal sorgular
 * [x] AI Copilot altyapısı
-* [x] LLM entegrasyonu
+* [x] LLM entegrasyonu (Ollama üzerinden yerel çalışma)
 * [x] Tool Calling
 * [x] Finansal analiz araçları
 * [x] Temel anomali tespit altyapısı
