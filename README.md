@@ -358,22 +358,6 @@ DB_NAME=YOUR_DATABASE
 python -m app.main
 ```
 
----
-
-## 🔐 Güvenlik
-
-`.env` dosyası içerisinde bulunan;
-
-* Veritabanı kullanıcı bilgileri
-* Şifreler
-* Özel bağlantı bilgileri
-
-GitHub reposuna gönderilmemelidir.
-
-`.gitignore` içerisinde `.env` dosyasının bulunduğundan emin olun.
-
----
-
 ## 🗺️ Geliştirme Yol Haritası
 
 ### ✅ Tamamlanan / Çalışan
